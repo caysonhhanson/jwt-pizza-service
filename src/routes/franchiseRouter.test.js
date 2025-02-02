@@ -3,7 +3,6 @@ const {
     request, 
     randomName,
     createAdminUser,
-    Role,
     DB 
   } = require('./testUtils');
   
