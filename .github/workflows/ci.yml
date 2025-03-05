@@ -63,8 +63,6 @@ jobs:
           coverage=$(jq '.total.lines.pct' coverage/coverage-summary.json)
           color=$(echo "$coverage < 80" | bc | awk '{if ($1) print "red"; else print "green"}')
           curl -s -X POST "https://badge.cs329.click/badge/${{ github.repository_owner }}/jwtpizzaservicecoverage?label=Coverage&value=$coverage%25&color=$color" -H "authorization: bearer ${{ secrets.FACTORY_API_KEY }}" -o /dev/null
-      
-      # Add these new steps to the build job
       - name: Create dist
         run: |
           mkdir dist
@@ -74,14 +72,12 @@ jobs:
           sed -i "s/root/${{ secrets.DB_USERNAME }}/g" dist/config.js
           sed -i "s/tempdbpassword/${{ secrets.DB_PASSWORD }}/g" dist/config.js
           sed -i "s/127.0.0.1/${{ secrets.DB_HOSTNAME }}/g" dist/config.js
-      
       - name: Update distribution artifact
         uses: actions/upload-artifact@v4
         with:
           name: package
           path: dist/
   
-  # Add a new deploy job
   deploy:
     runs-on: ubuntu-latest
     permissions:
@@ -94,24 +90,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: package
-
       - name: Create OIDC token to AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           audience: sts.amazonaws.com
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ secrets.CI_IAM_ROLE }}
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
       - name: Set up machine emulation
         uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker build
         uses: docker/setup-buildx-action@v3
-
       - name: Build and push container image
         id: build-image
         env:
@@ -119,4 +110,15 @@ jobs:
           ECR_REPOSITORY: 'jwt-pizza-service'
         run: |
           docker build --platform=linux/arm64 -t $ECR_REGISTRY/$ECR_REPOSITORY --push .
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >>  $GITHUB_OUTPUT
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_OUTPUT
+      
+      # Add this new step to deploy the container to ECS
+      - name: Deploy new container to ECS
+        run: |
+          aws ecs update-service --cluster jwt-pizza-service --service jwt-pizza-service --force-new-deployment
+          
+      # Optional: Wait for deployment to complete to verify success
+      - name: Wait for deployment to complete
+        run: |
+          aws ecs wait services-stable --cluster jwt-pizza-service --services jwt-pizza-service
+          echo "Deployment completed successfully"
