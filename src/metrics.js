@@ -28,7 +28,13 @@ function requestTracker(req, res, next) {
   
   // Track response time
   res.on('finish', () => {
-    metrics.latency.service.push(Date.now() - start);
+    const duration = Date.now() - start;
+    metrics.latency.service.push(duration);
+    
+    // Keep the array size reasonable
+    if (metrics.latency.service.length > 100) {
+      metrics.latency.service.shift();
+    }
   });
   
   next();
@@ -36,8 +42,11 @@ function requestTracker(req, res, next) {
 
 // Track authentication attempts
 function trackAuth(success) {
-  if (success) metrics.auth.successful++;
-  else metrics.auth.failed++;
+  if (success) {
+    metrics.auth.successful++;
+  } else {
+    metrics.auth.failed++;
+  }
 }
 
 // Track pizza orders
@@ -45,7 +54,13 @@ function trackPizzaOrder(order, success, creationTime) {
   if (success) {
     metrics.pizzas.sold += order.items.length;
     metrics.pizzas.revenue += order.items.reduce((sum, item) => sum + parseFloat(item.price), 0);
-    if (creationTime) metrics.latency.pizzaCreation.push(creationTime);
+    if (creationTime) {
+      metrics.latency.pizzaCreation.push(creationTime);
+      // Keep the array size reasonable
+      if (metrics.latency.pizzaCreation.length > 100) {
+        metrics.latency.pizzaCreation.shift();
+      }
+    }
   } else {
     metrics.pizzas.failures += order.items.length;
   }
@@ -59,88 +74,113 @@ function getSystemMetrics() {
   };
 }
 
+// Format to InfluxDB line protocol
+function formatInfluxMetric(measurement, tags, fields, timestamp = Date.now()) {
+  // Format tags
+  const tagString = Object.entries(tags)
+    .map(([key, value]) => `${key}=${escapeValue(value)}`)
+    .join(',');
+  
+  // Format fields
+  const fieldString = Object.entries(fields)
+    .map(([key, value]) => {
+      // Handle numeric values correctly for InfluxDB
+      if (typeof value === 'number') {
+        // Integer or float formatting
+        return Number.isInteger(value) ? `${key}=${value}i` : `${key}=${value}`;
+      }
+      return `${key}="${escapeValue(value)}"`;
+    })
+    .join(',');
+  
+  // Format the full line
+  return `${measurement},${tagString} ${fieldString} ${timestamp}000000`;
+}
+
+function escapeValue(value) {
+  // Escape special characters in tag/field values
+  if (typeof value === 'string') {
+    return value.replace(/ /g, '\\ ').replace(/,/g, '\\,').replace(/=/g, '\\=');
+  }
+  return value;
+}
+
 // Send metrics to Grafana
 async function sendMetrics() {
-  if (!config.metrics || !config.metrics.url || !config.metrics.apiKey) return;
+  if (!config.metrics || !config.metrics.url || !config.metrics.apiKey) {
+    console.log('Metrics configuration not found, skipping metrics reporting');
+    return;
+  }
 
-  const timestamp = Date.now() * 1000000; // Nanoseconds
-  
   try {
-    // Build OTLP format metrics
-    const payload = {
-      resourceMetrics: [{
-        resource: {
-          attributes: [{ key: "service.name", value: { stringValue: config.metrics.source } }]
-        },
-        scopeMetrics: [{
-          metrics: [
-            // HTTP request metrics
-            createCounterMetric("http_requests_total", metrics.httpRequests.total, timestamp),
-            createCounterMetric("http_requests_get", metrics.httpRequests.get, timestamp),
-            createCounterMetric("http_requests_post", metrics.httpRequests.post, timestamp),
-            createCounterMetric("http_requests_put", metrics.httpRequests.put, timestamp),
-            createCounterMetric("http_requests_delete", metrics.httpRequests.delete, timestamp),
-            
-            // Auth metrics
-            createCounterMetric("auth_attempts_successful", metrics.auth.successful, timestamp),
-            createCounterMetric("auth_attempts_failed", metrics.auth.failed, timestamp),
-            
-            // Active users
-            createGaugeMetric("active_users", metrics.users.size, timestamp),
-            
-            // System metrics
-            createGaugeMetric("system_cpu_usage", parseFloat(getSystemMetrics().cpu), timestamp),
-            createGaugeMetric("system_memory_usage", parseFloat(getSystemMetrics().memory), timestamp),
-            
-            // Pizza metrics
-            createCounterMetric("pizzas_sold", metrics.pizzas.sold, timestamp),
-            createCounterMetric("pizzas_failures", metrics.pizzas.failures, timestamp),
-            createCounterMetric("pizzas_revenue", metrics.pizzas.revenue, timestamp),
-            
-            // Latency metrics
-            createGaugeMetric("latency_service", getAverage(metrics.latency.service), timestamp),
-            createGaugeMetric("latency_pizza_creation", getAverage(metrics.latency.pizzaCreation), timestamp)
-          ]
-        }]
-      }]
-    };
+    const timestamp = Math.floor(Date.now() / 1000) * 1000; // Round to nearest second
+    const lines = [];
+    const source = config.metrics.source;
+    const systemMetrics = getSystemMetrics();
+    
+    // HTTP request metrics
+    lines.push(formatInfluxMetric('http_requests', { source }, { 
+      total: metrics.httpRequests.total,
+      get: metrics.httpRequests.get,
+      post: metrics.httpRequests.post,
+      put: metrics.httpRequests.put,
+      delete: metrics.httpRequests.delete
+    }, timestamp));
+    
+    // Authentication metrics
+    lines.push(formatInfluxMetric('auth_attempts', { source }, {
+      successful: metrics.auth.successful,
+      failed: metrics.auth.failed
+    }, timestamp));
+    
+    // Active users metric
+    lines.push(formatInfluxMetric('active_users', { source }, {
+      count: metrics.users.size
+    }, timestamp));
+    
+    // System metrics
+    lines.push(formatInfluxMetric('system', { source }, {
+      cpu_usage: parseFloat(systemMetrics.cpu),
+      memory_usage: parseFloat(systemMetrics.memory)
+    }, timestamp));
+    
+    // Pizza metrics
+    lines.push(formatInfluxMetric('pizzas', { source }, {
+      sold: metrics.pizzas.sold,
+      failures: metrics.pizzas.failures,
+      revenue: metrics.pizzas.revenue
+    }, timestamp));
+    
+    // Latency metrics
+    const avgServiceLatency = getAverage(metrics.latency.service);
+    const avgPizzaCreationLatency = getAverage(metrics.latency.pizzaCreation);
+    
+    lines.push(formatInfluxMetric('latency', { source }, {
+      service: avgServiceLatency,
+      pizza_creation: avgPizzaCreationLatency
+    }, timestamp));
 
     // Send to Grafana
-    await fetch(config.metrics.url, {
+    const response = await fetch(config.metrics.url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
         'Authorization': `Bearer ${config.metrics.apiKey}`
       },
-      body: JSON.stringify(payload)
+      body: lines.join('\n')
     });
-    
-    // Reset counters after successful send
-    resetCounters();
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Error sending metrics: ${response.status} - ${text}`);
+    } else {
+      console.log('Metrics sent successfully');
+      // Reset counters after successful send, but keep the users set
+      resetCounters();
+    }
   } catch (error) {
     console.error("Error sending metrics:", error);
   }
-}
-
-// Helper function to create a counter metric
-function createCounterMetric(name, value, timestamp) {
-  return {
-    name: name,
-    sum: {
-      dataPoints: [{ timeUnixNano: timestamp.toString(), asInt: value }],
-      isMonotonic: true
-    }
-  };
-}
-
-// Helper function to create a gauge metric
-function createGaugeMetric(name, value, timestamp) {
-  return {
-    name: name,
-    gauge: {
-      dataPoints: [{ timeUnixNano: timestamp.toString(), asDouble: value }]
-    }
-  };
 }
 
 // Calculate average of array
@@ -148,17 +188,18 @@ function getAverage(arr) {
   return arr.length ? arr.reduce((sum, val) => sum + val, 0) / arr.length : 0;
 }
 
-// Reset counters
+// Reset counters after sending metrics
 function resetCounters() {
   metrics.httpRequests = { total: 0, get: 0, post: 0, put: 0, delete: 0 };
   metrics.auth = { successful: 0, failed: 0 };
-  metrics.users = new Set();
+  // Don't reset users set to track active users across intervals
   metrics.pizzas = { sold: 0, failures: 0, revenue: 0 };
-  metrics.latency = { service: [], pizzaCreation: [] };
+  // Keep latency arrays for smooth averages
 }
 
-// Start sending metrics periodically
-setInterval(sendMetrics, 15000);
+// Start sending metrics periodically (every 15 seconds)
+const METRICS_INTERVAL = 15000; // 15 seconds
+setInterval(sendMetrics, METRICS_INTERVAL);
 
 module.exports = {
   requestTracker,

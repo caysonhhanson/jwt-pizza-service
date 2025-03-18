@@ -10,6 +10,7 @@ const app = express();
 app.use(express.json());
 app.use(setAuthUser);
 
+// Add metrics middleware early to track all requests
 app.use(requestTracker);
 
 app.use((req, res, next) => {

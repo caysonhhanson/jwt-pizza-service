@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config.js');
 const { asyncHandler } = require('../endpointHelper.js');
 const { DB, Role } = require('../database/database.js');
-const { metrics } = require('../metrics.js');
+const { trackAuth } = require('../metrics.js');
 
 const authRouter = express.Router();
 
@@ -48,11 +48,6 @@ async function setAuthUser(req, res, next) {
         // Check the database to make sure the token is valid.
         req.user = jwt.verify(token, config.jwtSecret);
         req.user.isRole = (role) => !!req.user.roles.find((r) => r.role === role);
-        
-        // Track active user for metrics
-        if (req.user && req.user.id) {
-          metrics.users.active.add(req.user.id);
-        }
       }
     } catch {
       req.user = null;
@@ -82,11 +77,13 @@ authRouter.post(
       const user = await DB.addUser({ name, email, password, roles: [{ role: Role.Diner }] });
       const auth = await setAuth(user);
       
-      metrics.trackAuthentication(true);
+      // Track successful authentication for new user
+      trackAuth(true);
       
       res.json({ user: user, token: auth });
     } catch (error) {
-      metrics.trackAuthentication(false);
+      // Track failed authentication
+      trackAuth(false);
       throw error;
     }
   })
@@ -101,11 +98,13 @@ authRouter.put(
       const user = await DB.getUser(email, password);
       const auth = await setAuth(user);
     
-      metrics.trackAuthentication(true);
+      // Track successful login
+      trackAuth(true);
       
       res.json({ user: user, token: auth });
     } catch (error) {
-      metrics.trackAuthentication(false);
+      // Track failed login
+      trackAuth(false);
       throw error;
     }
   })
