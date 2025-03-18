@@ -49,6 +49,11 @@ jobs:
             url: 'https://pizza-factory.cs329.click',
             apiKey: '${{ secrets.FACTORY_API_KEY }}',
           },
+          metrics: {
+            source: 'jwt-pizza-service',
+            url: 'https://otlp-gateway-prod-us-east-2.grafana.net/otlp/v1/metrics',
+            apiKey: '${{ secrets.METRICS_API_KEY }}',
+          },
           };" > src/config.js
       - name: Tests
         run: npm test
@@ -115,4 +120,3 @@ jobs:
       - name: Deploy new container to ECS
         run: |
           aws ecs update-service --cluster jwt-pizza-service --service jwt-pizza-service --force-new-deployment
-          
