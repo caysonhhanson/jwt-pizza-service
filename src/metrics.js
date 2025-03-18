@@ -77,38 +77,7 @@ function getSystemMetrics() {
   };
 }
 
-// Format to InfluxDB line protocol
-function formatInfluxMetric(measurement, tags, fields, timestamp = Date.now()) {
-  // Format tags
-  const tagString = Object.entries(tags)
-    .map(([key, value]) => `${key}=${escapeValue(value)}`)
-    .join(',');
-  
-  // Format fields
-  const fieldString = Object.entries(fields)
-    .map(([key, value]) => {
-      // Handle numeric values correctly for InfluxDB
-      if (typeof value === 'number') {
-        // Integer or float formatting
-        return Number.isInteger(value) ? `${key}=${value}i` : `${key}=${value}`;
-      }
-      return `${key}="${escapeValue(value)}"`;
-    })
-    .join(',');
-  
-  // Format the full line
-  return `${measurement},${tagString} ${fieldString} ${timestamp}000000`;
-}
-
-function escapeValue(value) {
-  // Escape special characters in tag/field values
-  if (typeof value === 'string') {
-    return value.replace(/ /g, '\\ ').replace(/,/g, '\\,').replace(/=/g, '\\=');
-  }
-  return value;
-}
-
-// Send metrics to Grafana
+// Send metrics to Grafana using OTLP format
 async function sendMetrics() {
   if (!config.metrics || !config.metrics.url || !config.metrics.apiKey) {
     console.log('Metrics configuration not found, skipping metrics reporting');
@@ -116,87 +85,243 @@ async function sendMetrics() {
   }
 
   try {
-    const timestamp = Math.floor(Date.now() / 1000) * 1000; // Round to nearest second
-    const lines = [];
+    const timestamp = Date.now() * 1000000; // Convert to nanoseconds
     const source = config.metrics.source;
     const systemMetrics = getSystemMetrics();
     
-    // HTTP request metrics
-    lines.push(formatInfluxMetric('http_requests', { source }, { 
-      total: metrics.httpRequests.total,
-      get: metrics.httpRequests.get,
-      post: metrics.httpRequests.post,
-      put: metrics.httpRequests.put,
-      delete: metrics.httpRequests.delete
-    }, timestamp));
-    
-    // Authentication metrics
-    lines.push(formatInfluxMetric('auth_attempts', { source }, {
-      successful: metrics.auth.successful,
-      failed: metrics.auth.failed,
-      total: metrics.auth.successful + metrics.auth.failed
-    }, timestamp));
-    
-    // Active users metric
-    lines.push(formatInfluxMetric('active_users', { source }, {
-      count: metrics.users.size
-    }, timestamp));
-    
-    // System metrics
-    lines.push(formatInfluxMetric('system', { source }, {
-      cpu_usage: parseFloat(systemMetrics.cpu),
-      memory_usage: parseFloat(systemMetrics.memory)
-    }, timestamp));
-    
-    // Pizza metrics - split into individual metrics for better visualization
-    lines.push(formatInfluxMetric('pizza_sales', { source }, {
-      sold: metrics.pizzas.sold
-    }, timestamp));
-    
-    lines.push(formatInfluxMetric('pizza_failures', { source }, {
-      count: metrics.pizzas.failures
-    }, timestamp));
-    
-    lines.push(formatInfluxMetric('pizza_revenue', { source }, {
-      amount: metrics.pizzas.revenue
-    }, timestamp));
-    
-    // Latency metrics - split for better visualization
-    const avgServiceLatency = getAverage(metrics.latency.service);
-    lines.push(formatInfluxMetric('service_latency', { source }, {
-      average: avgServiceLatency
-    }, timestamp));
-    
-    const avgPizzaCreationLatency = getAverage(metrics.latency.pizzaCreation);
-    lines.push(formatInfluxMetric('pizza_creation_latency', { source }, {
-      average: avgPizzaCreationLatency
-    }, timestamp));
+    // Create an OTLP metrics payload
+    const payload = {
+      resourceMetrics: [
+        {
+          scopeMetrics: [
+            {
+              metrics: [
+                // HTTP requests metric
+                {
+                  name: "http_requests",
+                  unit: "1",
+                  sum: {
+                    dataPoints: [
+                      {
+                        asInt: metrics.httpRequests.total,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "method", value: { stringValue: "total" } }
+                        ]
+                      },
+                      {
+                        asInt: metrics.httpRequests.get,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "method", value: { stringValue: "get" } }
+                        ]
+                      },
+                      {
+                        asInt: metrics.httpRequests.post,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "method", value: { stringValue: "post" } }
+                        ]
+                      },
+                      {
+                        asInt: metrics.httpRequests.put,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "method", value: { stringValue: "put" } }
+                        ]
+                      },
+                      {
+                        asInt: metrics.httpRequests.delete,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "method", value: { stringValue: "delete" } }
+                        ]
+                      }
+                    ],
+                    aggregationTemporality: "AGGREGATION_TEMPORALITY_CUMULATIVE",
+                    isMonotonic: true
+                  }
+                },
+                // Auth metrics
+                {
+                  name: "auth_attempts",
+                  unit: "1",
+                  sum: {
+                    dataPoints: [
+                      {
+                        asInt: metrics.auth.successful,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "result", value: { stringValue: "success" } }
+                        ]
+                      },
+                      {
+                        asInt: metrics.auth.failed,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } },
+                          { key: "result", value: { stringValue: "failure" } }
+                        ]
+                      }
+                    ],
+                    aggregationTemporality: "AGGREGATION_TEMPORALITY_CUMULATIVE",
+                    isMonotonic: true
+                  }
+                },
+                // Active users
+                {
+                  name: "active_users",
+                  unit: "1",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        asInt: metrics.users.size,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                // CPU usage
+                {
+                  name: "cpu_usage",
+                  unit: "%",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        asDouble: parseFloat(systemMetrics.cpu),
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                // Memory usage
+                {
+                  name: "memory_usage",
+                  unit: "%",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        asDouble: parseFloat(systemMetrics.memory),
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                // Pizza metrics
+                {
+                  name: "pizzas_sold",
+                  unit: "1",
+                  sum: {
+                    dataPoints: [
+                      {
+                        asInt: metrics.pizzas.sold,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ],
+                    aggregationTemporality: "AGGREGATION_TEMPORALITY_CUMULATIVE",
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "pizza_failures",
+                  unit: "1",
+                  sum: {
+                    dataPoints: [
+                      {
+                        asInt: metrics.pizzas.failures,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ],
+                    aggregationTemporality: "AGGREGATION_TEMPORALITY_CUMULATIVE",
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "pizza_revenue",
+                  unit: "$",
+                  sum: {
+                    dataPoints: [
+                      {
+                        asDouble: metrics.pizzas.revenue,
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ],
+                    aggregationTemporality: "AGGREGATION_TEMPORALITY_CUMULATIVE",
+                    isMonotonic: true
+                  }
+                },
+                // Latency metrics
+                {
+                  name: "service_latency",
+                  unit: "ms",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        asDouble: getAverage(metrics.latency.service),
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  name: "pizza_creation_latency",
+                  unit: "ms",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        asDouble: getAverage(metrics.latency.pizzaCreation),
+                        timeUnixNano: timestamp,
+                        attributes: [
+                          { key: "source", value: { stringValue: source } }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
 
-    // Individual HTTP method counts per second
-    lines.push(formatInfluxMetric('http_methods', { source, method: 'get' }, {
-      count: metrics.httpRequests.get
-    }, timestamp));
+    console.log('Sending metrics to Grafana');
     
-    lines.push(formatInfluxMetric('http_methods', { source, method: 'post' }, {
-      count: metrics.httpRequests.post
-    }, timestamp));
-    
-    lines.push(formatInfluxMetric('http_methods', { source, method: 'put' }, {
-      count: metrics.httpRequests.put
-    }, timestamp));
-    
-    lines.push(formatInfluxMetric('http_methods', { source, method: 'delete' }, {
-      count: metrics.httpRequests.delete
-    }, timestamp));
-
     // Send to Grafana
     const response = await fetch(config.metrics.url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.metrics.apiKey}`
       },
-      body: lines.join('\n')
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -226,10 +351,6 @@ function resetCounters() {
   // Keep latency arrays for smooth averages
 }
 
-// Start sending metrics periodically (every 15 seconds)
-const METRICS_INTERVAL = 15000; // 15 seconds
-metricsInterval = setInterval(sendMetrics, METRICS_INTERVAL);
-
 // Function to validate metrics configuration
 function validateMetricsConfig() {
   if (!config.metrics) {
@@ -257,6 +378,10 @@ function validateMetricsConfig() {
 
 // Call validation on startup
 validateMetricsConfig();
+
+// Start sending metrics periodically (every 15 seconds)
+const METRICS_INTERVAL = 15000; // 15 seconds
+metricsInterval = setInterval(sendMetrics, METRICS_INTERVAL);
 
 module.exports = {
   requestTracker,
