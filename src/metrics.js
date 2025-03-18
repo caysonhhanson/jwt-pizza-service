@@ -33,6 +33,7 @@ class Metrics {
     
     this.requestStartTimes = new Map();
     
+    // Start periodic reporting if configuration is available
     if (config.metrics && config.metrics.url && config.metrics.apiKey) {
       this.startPeriodicReporting();
     } else {
@@ -40,20 +41,24 @@ class Metrics {
     }
   }
   
+  // Express middleware to track HTTP requests
   requestTracker(req, res, next) {
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substring(2);
     
+    // Store start time for latency calculation
     metrics.requestStartTimes.set(requestId, {
       startTime,
       method: req.method,
       path: req.path
     });
     
+    // Track active user if authenticated
     if (req.user && req.user.id) {
       metrics.users.active.add(req.user.id);
     }
     
+    // Increment HTTP request counters
     metrics.httpRequests.total++;
     switch (req.method.toLowerCase()) {
       case 'get':
@@ -70,17 +75,20 @@ class Metrics {
         break;
     }
     
+    // Capture response time when request completes
     res.on('finish', () => {
       const requestInfo = metrics.requestStartTimes.get(requestId);
       if (requestInfo) {
         const responseTime = Date.now() - requestInfo.startTime;
         const path = requestInfo.path;
         
+        // Store endpoint latency
         if (!metrics.latency.endpoints[path]) {
           metrics.latency.endpoints[path] = [];
         }
         metrics.latency.endpoints[path].push(responseTime);
         
+        // Cleanup
         metrics.requestStartTimes.delete(requestId);
       }
     });
@@ -88,6 +96,7 @@ class Metrics {
     next();
   }
   
+  // Track authentication attempts
   trackAuthentication(success) {
     if (success) {
       this.auth.successfulAttempts++;
@@ -96,13 +105,16 @@ class Metrics {
     }
   }
   
+  // Track pizza orders
   trackPizzaOrder(order, success, creationTime) {
     if (success) {
       this.pizzas.sold += order.items.length;
       
+      // Calculate total revenue
       const revenue = order.items.reduce((sum, item) => sum + parseFloat(item.price), 0);
       this.pizzas.revenue += revenue;
       
+      // Track pizza creation time
       if (creationTime) {
         this.latency.pizzaCreation.push(creationTime);
       }
@@ -111,7 +123,7 @@ class Metrics {
     }
   }
   
-
+  // Get system metrics
   getSystemMetrics() {
     return {
       cpuUsage: this.getCpuUsagePercentage(),
@@ -131,7 +143,9 @@ class Metrics {
     return (usedMemory / totalMemory) * 100;
   }
   
+  // Start periodic reporting to Grafana
   startPeriodicReporting() {
+    // Report metrics every 15 seconds
     setInterval(() => {
       try {
         this.sendMetricsToGrafana();
@@ -141,28 +155,248 @@ class Metrics {
     }, 15000);
   }
   
-
+  // Send metrics to Grafana using OTLP format
   async sendMetricsToGrafana() {
     if (!config.metrics || !config.metrics.url || !config.metrics.apiKey) {
       return;
     }
     
-    const timestamp = new Date().getTime() * 1000000;
+    const timestamp = new Date().getTime() * 1000000; // Nanoseconds
     const source = config.metrics.source;
     
-    const lines = [];
+    // Build OTLP payload
+    const payload = {
+      resourceMetrics: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: source
+                }
+              }
+            ]
+          },
+          scopeMetrics: [
+            {
+              metrics: [
+                // HTTP Requests
+                {
+                  name: "http_requests_total",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.httpRequests.total
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "http_requests_get",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.httpRequests.get
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "http_requests_post",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.httpRequests.post
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "http_requests_put",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.httpRequests.put
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "http_requests_delete",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.httpRequests.delete
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                
+                // Authentication metrics
+                {
+                  name: "auth_attempts_successful",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.auth.successfulAttempts
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "auth_attempts_failed",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.auth.failedAttempts
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                
+                // Active users
+                {
+                  name: "active_users",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.users.active.size
+                      }
+                    ]
+                  }
+                },
+                
+                // System metrics
+                {
+                  name: "system_cpu_usage",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asDouble: this.getSystemMetrics().cpuUsage
+                      }
+                    ]
+                  }
+                },
+                {
+                  name: "system_memory_usage",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asDouble: this.getSystemMetrics().memoryUsage
+                      }
+                    ]
+                  }
+                },
+                
+                // Pizza metrics
+                {
+                  name: "pizzas_sold",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.pizzas.sold
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "pizzas_failures",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asInt: this.pizzas.failures
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                {
+                  name: "pizzas_revenue",
+                  sum: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asDouble: this.pizzas.revenue
+                      }
+                    ],
+                    isMonotonic: true
+                  }
+                },
+                
+                // Latency metrics
+                {
+                  name: "latency_service",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asDouble: this.calculateAverageServiceLatency()
+                      }
+                    ]
+                  }
+                },
+                {
+                  name: "latency_pizza_creation",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        timeUnixNano: timestamp.toString(),
+                        asDouble: this.calculateAveragePizzaCreationLatency()
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
     
-    lines.push(`http_requests,source=${source} total=${this.httpRequests.total},get=${this.httpRequests.get},post=${this.httpRequests.post},put=${this.httpRequests.put},delete=${this.httpRequests.delete} ${timestamp}`);
-    
-    lines.push(`auth_attempts,source=${source} successful=${this.auth.successfulAttempts},failed=${this.auth.failedAttempts} ${timestamp}`);
-    
-    lines.push(`active_users,source=${source} count=${this.users.active.size} ${timestamp}`);
-    
-    const systemMetrics = this.getSystemMetrics();
-    lines.push(`system,source=${source} cpu=${systemMetrics.cpuUsage},memory=${systemMetrics.memoryUsage} ${timestamp}`);
-    
-    lines.push(`pizzas,source=${source} sold=${this.pizzas.sold},failures=${this.pizzas.failures},revenue=${this.pizzas.revenue} ${timestamp}`);
-    
+    try {
+      const response = await fetch(config.metrics.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.metrics.apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to send metrics to Grafana:', await response.text());
+      } else {
+        // Reset certain counters after successful reporting
+        this.resetCounters();
+      }
+    } catch (error) {
+      console.error('Error sending metrics to Grafana:', error);
+    }
+  }
+  
+  // Calculate average service latency
+  calculateAverageServiceLatency() {
     let avgServiceLatency = 0;
     let endpointCount = 0;
     
@@ -174,63 +408,53 @@ class Metrics {
       }
     });
     
-    avgServiceLatency = endpointCount > 0 ? avgServiceLatency / endpointCount : 0;
-    
-    const avgPizzaCreationLatency = this.latency.pizzaCreation.length > 0
+    return endpointCount > 0 ? avgServiceLatency / endpointCount : 0;
+  }
+  
+  // Calculate average pizza creation latency
+  calculateAveragePizzaCreationLatency() {
+    return this.latency.pizzaCreation.length > 0
       ? this.latency.pizzaCreation.reduce((a, b) => a + b, 0) / this.latency.pizzaCreation.length
       : 0;
+  }
+  
+  // Reset counters after sending metrics
+  resetCounters() {
+    this.httpRequests = {
+      total: 0,
+      get: 0,
+      post: 0,
+      put: 0,
+      delete: 0
+    };
     
-    lines.push(`latency,source=${source} service=${avgServiceLatency},pizza_creation=${avgPizzaCreationLatency} ${timestamp}`);
+    this.auth = {
+      successfulAttempts: 0,
+      failedAttempts: 0
+    };
     
-    const metricsData = lines.join('\n');
+    // Keep track of unique users over a window, but clear old data
+    this.users.active = new Set();
     
-    try {
-      const response = await fetch(config.metrics.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-          'Authorization': `Bearer ${config.metrics.apiKey}`
-        },
-        body: metricsData
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to send metrics to Grafana:', await response.text());
-      } else {
-        this.httpRequests = {
-          total: 0,
-          get: 0,
-          post: 0,
-          put: 0,
-          delete: 0
-        };
-        
-        this.auth = {
-          successfulAttempts: 0,
-          failedAttempts: 0
-        };
-        
-        this.users.active = new Set();
-        
-        this.pizzas = {
-          sold: 0,
-          failures: 0,
-          revenue: 0
-        };
-        
-        this.latency.endpoints = {};
-        this.latency.pizzaCreation = [];
-      }
-    } catch (error) {
-      console.error('Error sending metrics to Grafana:', error);
-    }
+    this.pizzas = {
+      sold: 0,
+      failures: 0,
+      revenue: 0
+    };
+    
+    // Reset latency tracking
+    this.latency.endpoints = {};
+    this.latency.pizzaCreation = [];
   }
 }
 
+// Create a singleton instance
 const metrics = new Metrics();
 
+// Export both the class and the singleton
 module.exports = {
   Metrics,
   metrics,
+  // Middleware for Express
   requestTracker: (req, res, next) => metrics.requestTracker(req, res, next)
 };
