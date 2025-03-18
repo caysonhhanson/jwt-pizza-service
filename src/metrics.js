@@ -133,7 +133,8 @@ async function sendMetrics() {
     // Authentication metrics
     lines.push(formatInfluxMetric('auth_attempts', { source }, {
       successful: metrics.auth.successful,
-      failed: metrics.auth.failed
+      failed: metrics.auth.failed,
+      total: metrics.auth.successful + metrics.auth.failed
     }, timestamp));
     
     // Active users metric
@@ -147,20 +148,45 @@ async function sendMetrics() {
       memory_usage: parseFloat(systemMetrics.memory)
     }, timestamp));
     
-    // Pizza metrics
-    lines.push(formatInfluxMetric('pizzas', { source }, {
-      sold: metrics.pizzas.sold,
-      failures: metrics.pizzas.failures,
-      revenue: metrics.pizzas.revenue
+    // Pizza metrics - split into individual metrics for better visualization
+    lines.push(formatInfluxMetric('pizza_sales', { source }, {
+      sold: metrics.pizzas.sold
     }, timestamp));
     
-    // Latency metrics
-    const avgServiceLatency = getAverage(metrics.latency.service);
-    const avgPizzaCreationLatency = getAverage(metrics.latency.pizzaCreation);
+    lines.push(formatInfluxMetric('pizza_failures', { source }, {
+      count: metrics.pizzas.failures
+    }, timestamp));
     
-    lines.push(formatInfluxMetric('latency', { source }, {
-      service: avgServiceLatency,
-      pizza_creation: avgPizzaCreationLatency
+    lines.push(formatInfluxMetric('pizza_revenue', { source }, {
+      amount: metrics.pizzas.revenue
+    }, timestamp));
+    
+    // Latency metrics - split for better visualization
+    const avgServiceLatency = getAverage(metrics.latency.service);
+    lines.push(formatInfluxMetric('service_latency', { source }, {
+      average: avgServiceLatency
+    }, timestamp));
+    
+    const avgPizzaCreationLatency = getAverage(metrics.latency.pizzaCreation);
+    lines.push(formatInfluxMetric('pizza_creation_latency', { source }, {
+      average: avgPizzaCreationLatency
+    }, timestamp));
+
+    // Individual HTTP method counts per second
+    lines.push(formatInfluxMetric('http_methods', { source, method: 'get' }, {
+      count: metrics.httpRequests.get
+    }, timestamp));
+    
+    lines.push(formatInfluxMetric('http_methods', { source, method: 'post' }, {
+      count: metrics.httpRequests.post
+    }, timestamp));
+    
+    lines.push(formatInfluxMetric('http_methods', { source, method: 'put' }, {
+      count: metrics.httpRequests.put
+    }, timestamp));
+    
+    lines.push(formatInfluxMetric('http_methods', { source, method: 'delete' }, {
+      count: metrics.httpRequests.delete
     }, timestamp));
 
     // Send to Grafana
@@ -204,10 +230,39 @@ function resetCounters() {
 const METRICS_INTERVAL = 15000; // 15 seconds
 metricsInterval = setInterval(sendMetrics, METRICS_INTERVAL);
 
+// Function to validate metrics configuration
+function validateMetricsConfig() {
+  if (!config.metrics) {
+    console.error("Metrics configuration missing");
+    return false;
+  }
+  
+  if (!config.metrics.url) {
+    console.error("Metrics URL missing");
+    return false;
+  }
+  
+  if (!config.metrics.apiKey) {
+    console.error("Metrics API key missing");
+    return false;
+  }
+  
+  if (!config.metrics.source) {
+    console.error("Metrics source missing");
+    return false;
+  }
+  
+  return true;
+}
+
+// Call validation on startup
+validateMetricsConfig();
+
 module.exports = {
   requestTracker,
   trackAuth,
   trackPizzaOrder,
+  sendMetrics, // Export this for manual metrics sending
   // Add this for testing
   clearInterval: () => clearInterval(metricsInterval)
 };
