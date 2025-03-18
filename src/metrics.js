@@ -1,6 +1,9 @@
 const os = require('os');
 const config = require('./config.js');
 
+// Track the interval ID so we can clear it in tests
+let metricsInterval;
+
 // Global metrics counters
 const metrics = {
   httpRequests: { total: 0, get: 0, post: 0, put: 0, delete: 0 },
@@ -199,10 +202,12 @@ function resetCounters() {
 
 // Start sending metrics periodically (every 15 seconds)
 const METRICS_INTERVAL = 15000; // 15 seconds
-setInterval(sendMetrics, METRICS_INTERVAL);
+metricsInterval = setInterval(sendMetrics, METRICS_INTERVAL);
 
 module.exports = {
   requestTracker,
   trackAuth,
-  trackPizzaOrder
+  trackPizzaOrder,
+  // Add this for testing
+  clearInterval: () => clearInterval(metricsInterval)
 };
