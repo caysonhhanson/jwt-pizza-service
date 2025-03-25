@@ -176,7 +176,7 @@ setInterval(() => {
   
   if (metrics.pizzaCreationTimes.length > 0) {
     const avg = metrics.pizzaCreationTimes.reduce((sum, val) => sum + val, 0) / metrics.pizzaCreationTimes.length;
-    sendMetricToGrafana('pizza_creation_latency', avg, 'ms');
+    sendMetricToGrafana('pizza_creation_latency_milliseconds_total', avg, 'ms');
   }
   
   // Reset some metrics after reporting
