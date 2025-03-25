@@ -45,7 +45,6 @@ async function setAuthUser(req, res, next) {
   if (token) {
     try {
       if (await DB.isLoggedIn(token)) {
-        // Check the database to make sure the token is valid.
         req.user = jwt.verify(token, config.jwtSecret);
         req.user.isRole = (role) => !!req.user.roles.find((r) => r.role === role);
         
