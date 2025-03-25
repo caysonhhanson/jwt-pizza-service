@@ -4,10 +4,25 @@ const orderRouter = require('./routes/orderRouter.js');
 const franchiseRouter = require('./routes/franchiseRouter.js');
 const version = require('./version.json');
 const config = require('./config.js');
+const metrics = require('./metrics.js');
 
 const app = express();
 app.use(express.json());
 app.use(setAuthUser);
+
+// Add metrics middleware to track all HTTP requests
+app.use((req, res, next) => {
+  metrics.requestTracker(req, res, next);
+});
+
+// Track authenticated users
+app.use((req, res, next) => {
+  if (req.user && req.user.id) {
+    metrics.trackUser(req.user.id);
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
