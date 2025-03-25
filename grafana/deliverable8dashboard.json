@@ -105,7 +105,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "pizza_creation_latency_milliseconds_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "pizza_creation_latency_milliseconds_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -201,7 +201,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "endpoint_latency_milliseconds_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "endpoint_latency_milliseconds_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -297,7 +297,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "rate(pizza_revenue_total{source=\"jwt-pizza-service-dev\"}[$__rate_interval])",
+            "expr": "rate(pizza_revenue_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -364,7 +364,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "pizza_failures_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "pizza_failures_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -460,7 +460,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "rate(pizzas_sold_total{source=\"jwt-pizza-service-dev\"}[$__rate_interval])",
+            "expr": "rate(pizzas_sold_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -556,7 +556,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "cpu_usage_percent_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "cpu_usage_percent_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -571,7 +571,7 @@
             },
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "memory_usage_percent_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "memory_usage_percent_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "hide": false,
             "includeNullMetadata": true,
@@ -669,7 +669,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "rate(auth_attempts_total{source=\"jwt-pizza-service-dev\"}[$__rate_interval])",
+            "expr": "rate(auth_attempts_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -736,7 +736,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "active_users_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "active_users_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
@@ -836,7 +836,7 @@
             },
             "disableTextWrap": false,
             "editorMode": "builder",
-            "expr": "http_requests_total{source=\"jwt-pizza-service-dev\"}",
+            "expr": "http_requests_total{source=\"jwt-pizza-service\"}",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
