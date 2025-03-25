@@ -86,7 +86,7 @@
           "x": 0,
           "y": 0
         },
-        "id": 9,
+        "id": 8,
         "options": {
           "legend": {
             "calcs": [],
@@ -103,18 +103,14 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "pizza_creation_latency_milliseconds_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
-            "legendFormat": "__auto",
+            "editorMode": "code",
+            "expr": "endpoint_latency_milliseconds_total{source=\"jwt-pizza-service\"}",
+            "legendFormat": "{{endpoint}}",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
           }
         ],
-        "title": "Panel Title",
+        "title": "Endpoint LatencyPanel Title",
         "type": "timeseries"
       },
       {
@@ -182,102 +178,6 @@
           "x": 0,
           "y": 8
         },
-        "id": 8,
-        "options": {
-          "legend": {
-            "calcs": [],
-            "displayMode": "list",
-            "placement": "bottom",
-            "showLegend": true
-          },
-          "tooltip": {
-            "hideZeros": false,
-            "mode": "single",
-            "sort": "none"
-          }
-        },
-        "pluginVersion": "11.6.0-84846",
-        "targets": [
-          {
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "endpoint_latency_milliseconds_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
-            "legendFormat": "__auto",
-            "range": true,
-            "refId": "A",
-            "useBackend": false
-          }
-        ],
-        "title": "Panel Title",
-        "type": "timeseries"
-      },
-      {
-        "datasource": {
-          "type": "prometheus",
-          "uid": "grafanacloud-prom"
-        },
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "palette-classic"
-            },
-            "custom": {
-              "axisBorderShow": false,
-              "axisCenteredZero": false,
-              "axisColorMode": "text",
-              "axisLabel": "",
-              "axisPlacement": "auto",
-              "barAlignment": 0,
-              "barWidthFactor": 0.6,
-              "drawStyle": "line",
-              "fillOpacity": 0,
-              "gradientMode": "none",
-              "hideFrom": {
-                "legend": false,
-                "tooltip": false,
-                "viz": false
-              },
-              "insertNulls": false,
-              "lineInterpolation": "linear",
-              "lineWidth": 1,
-              "pointSize": 5,
-              "scaleDistribution": {
-                "type": "linear"
-              },
-              "showPoints": "auto",
-              "spanNulls": false,
-              "stacking": {
-                "group": "A",
-                "mode": "none"
-              },
-              "thresholdsStyle": {
-                "mode": "off"
-              }
-            },
-            "mappings": [],
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green"
-                },
-                {
-                  "color": "red",
-                  "value": 80
-                }
-              ]
-            }
-          },
-          "overrides": []
-        },
-        "gridPos": {
-          "h": 8,
-          "w": 12,
-          "x": 0,
-          "y": 16
-        },
         "id": 7,
         "options": {
           "legend": {
@@ -295,18 +195,14 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "rate(pizza_revenue_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
+            "editorMode": "code",
+            "expr": "rate(pizza_revenue_total{source=\"jwt-pizza-service\"}[$__rate_interval])\n",
             "legendFormat": "__auto",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
           }
         ],
-        "title": "Panel Title",
+        "title": "Revenue Per Minute",
         "type": "timeseries"
       },
       {
@@ -339,7 +235,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 24
+          "y": 16
         },
         "id": 6,
         "options": {
@@ -362,18 +258,14 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
+            "editorMode": "code",
             "expr": "pizza_failures_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
             "legendFormat": "__auto",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
           }
         ],
-        "title": "Panel Title",
+        "title": "Pizza Creation Failures",
         "type": "stat"
       },
       {
@@ -439,7 +331,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 32
+          "y": 24
         },
         "id": 5,
         "options": {
@@ -458,19 +350,89 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
+            "editorMode": "code",
             "expr": "rate(pizzas_sold_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
-            "legendFormat": "__auto",
+            "legendFormat": "Pizzas sold per Minute",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
           }
         ],
-        "title": "Panel Title",
+        "title": "Pizzas Sold per Minute",
         "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green"
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        },
+        "id": 4,
+        "options": {
+          "minVizHeight": 75,
+          "minVizWidth": 75,
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "sizing": "auto"
+        },
+        "pluginVersion": "11.6.0-84846",
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "cpu_usage_percent_total{source=\"jwt-pizza-service\"}",
+            "legendFormat": "{{__name__}}",
+            "range": true,
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "memory_usage_percent_total{source=\"jwt-pizza-service\"}",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "{{__name__}}",
+            "range": true,
+            "refId": "B"
+          }
+        ],
+        "title": "System Usage",
+        "type": "gauge"
       },
       {
         "datasource": {
@@ -537,119 +499,6 @@
           "x": 0,
           "y": 40
         },
-        "id": 4,
-        "options": {
-          "legend": {
-            "calcs": [],
-            "displayMode": "list",
-            "placement": "bottom",
-            "showLegend": true
-          },
-          "tooltip": {
-            "hideZeros": false,
-            "mode": "single",
-            "sort": "none"
-          }
-        },
-        "pluginVersion": "11.6.0-84846",
-        "targets": [
-          {
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "cpu_usage_percent_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
-            "legendFormat": "__auto",
-            "range": true,
-            "refId": "A",
-            "useBackend": false
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "grafanacloud-prom"
-            },
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "memory_usage_percent_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "hide": false,
-            "includeNullMetadata": true,
-            "instant": false,
-            "legendFormat": "__auto",
-            "range": true,
-            "refId": "B",
-            "useBackend": false
-          }
-        ],
-        "title": "Panel Title",
-        "type": "timeseries"
-      },
-      {
-        "datasource": {
-          "type": "prometheus",
-          "uid": "grafanacloud-prom"
-        },
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "palette-classic"
-            },
-            "custom": {
-              "axisBorderShow": false,
-              "axisCenteredZero": false,
-              "axisColorMode": "text",
-              "axisLabel": "",
-              "axisPlacement": "auto",
-              "barAlignment": 0,
-              "barWidthFactor": 0.6,
-              "drawStyle": "line",
-              "fillOpacity": 0,
-              "gradientMode": "none",
-              "hideFrom": {
-                "legend": false,
-                "tooltip": false,
-                "viz": false
-              },
-              "insertNulls": false,
-              "lineInterpolation": "linear",
-              "lineWidth": 1,
-              "pointSize": 5,
-              "scaleDistribution": {
-                "type": "linear"
-              },
-              "showPoints": "auto",
-              "spanNulls": false,
-              "stacking": {
-                "group": "A",
-                "mode": "none"
-              },
-              "thresholdsStyle": {
-                "mode": "off"
-              }
-            },
-            "mappings": [],
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green"
-                },
-                {
-                  "color": "red",
-                  "value": 80
-                }
-              ]
-            }
-          },
-          "overrides": []
-        },
-        "gridPos": {
-          "h": 8,
-          "w": 12,
-          "x": 0,
-          "y": 48
-        },
         "id": 3,
         "options": {
           "legend": {
@@ -667,18 +516,27 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "rate(auth_attempts_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
-            "legendFormat": "__auto",
+            "editorMode": "code",
+            "expr": "rate(auth_attempts_total{source=\"jwt-pizza-service\", status=\"success\"}[$__rate_interval])",
+            "legendFormat": "{{status}}",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "rate(auth_attempts_total{source=\"jwt-pizza-service\", status=\"failed\"}[$__rate_interval])",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "{{status}}",
+            "range": true,
+            "refId": "B"
           }
         ],
-        "title": "Panel Title",
+        "title": "Authentication Attempts per Minute",
         "type": "timeseries"
       },
       {
@@ -711,7 +569,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 56
+          "y": 48
         },
         "id": 2,
         "options": {
@@ -734,18 +592,14 @@
         "pluginVersion": "11.6.0-84846",
         "targets": [
           {
-            "disableTextWrap": false,
-            "editorMode": "builder",
+            "editorMode": "code",
             "expr": "active_users_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
             "legendFormat": "__auto",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
           }
         ],
-        "title": "Panel Title",
+        "title": "Active Users",
         "type": "stat"
       },
       {
@@ -811,7 +665,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 64
+          "y": 56
         },
         "id": 1,
         "options": {
@@ -834,18 +688,66 @@
               "type": "prometheus",
               "uid": "grafanacloud-prom"
             },
-            "disableTextWrap": false,
-            "editorMode": "builder",
-            "expr": "http_requests_total{source=\"jwt-pizza-service\"}",
-            "fullMetaSearch": false,
-            "includeNullMetadata": true,
+            "editorMode": "code",
+            "expr": "rate(http_requests_total{source=\"jwt-pizza-service\"}[$__rate_interval])",
             "legendFormat": "__auto",
             "range": true,
-            "refId": "A",
-            "useBackend": false
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "rate(http_requests_total{source=\"jwt-pizza-service\", method=\"get\"}[$__rate_interval])",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "B"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "rate(http_requests_total{source=\"jwt-pizza-service\", method=\"post\"}[$__rate_interval])",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "C"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "rate(http_requests_total{source=\"jwt-pizza-service\", method=\"put\"}[$__rate_interval])",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "D"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "editorMode": "code",
+            "expr": "rate(http_requests_total{source=\"jwt-pizza-service\", method=\"delete\"}[$__rate_interval])",
+            "hide": false,
+            "instant": false,
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "E"
           }
         ],
-        "title": "Panel Title",
+        "title": "HTTP Requests by Method",
         "type": "timeseries"
       }
     ],
@@ -856,12 +758,12 @@
       "list": []
     },
     "time": {
-      "from": "now-5m",
-      "to": "now"
+      "from": "2025-03-25T19:57:37.493Z",
+      "to": "2025-03-25T20:17:37.493Z"
     },
     "timepicker": {},
     "timezone": "browser",
     "title": "JWT Pizza Dashboard",
     "uid": "begxlhxjr8ni8e",
-    "version": 12
+    "version": 22
   }
