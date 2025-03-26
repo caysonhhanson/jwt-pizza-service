@@ -5,17 +5,18 @@ const franchiseRouter = require('./routes/franchiseRouter.js');
 const version = require('./version.json');
 const config = require('./config.js');
 const metrics = require('./metrics.js');
+const logger = require('./logger.js'); 
 
 const app = express();
 app.use(express.json());
 app.use(setAuthUser);
 
-// Add metrics middleware to track all HTTP requests
+app.use(logger.httpLogger);
+
 app.use((req, res, next) => {
   metrics.requestTracker(req, res, next);
 });
 
-// Track authenticated users
 app.use((req, res, next) => {
   if (req.user && req.user.id) {
     metrics.trackUser(req.user.id);
@@ -58,8 +59,9 @@ app.use('*', (req, res) => {
   });
 });
 
-// Default error handler for all exceptions and errors.
 app.use((err, req, res, next) => {
+  logger.errorLogger(err, req);
+  
   res.status(err.statusCode ?? 500).json({ message: err.message, stack: err.stack });
   next();
 });
