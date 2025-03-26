@@ -4,6 +4,7 @@ const { Role, DB } = require('../database/database.js');
 const { authRouter } = require('./authRouter.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
 const metrics = require('../metrics.js');
+const logger = require('../logger.js');
 
 const orderRouter = express.Router();
 
@@ -86,14 +87,38 @@ orderRouter.post(
     
     const startTime = Date.now();
     
+    // Prepare request for factory
+    const factoryRequestBody = { 
+      diner: { id: req.user.id, name: req.user.name, email: req.user.email }, 
+      order 
+    };
+    
     try {
+      // Log the factory service request
+      logger.factoryLogger(
+        `${config.factory.url}/api/order`, 
+        'POST', 
+        factoryRequestBody, 
+        null, 
+        0
+      );
+      
       const r = await fetch(`${config.factory.url}/api/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${config.factory.apiKey}` },
-        body: JSON.stringify({ diner: { id: req.user.id, name: req.user.name, email: req.user.email }, order }),
+        body: JSON.stringify(factoryRequestBody),
       });
       
       const j = await r.json();
+      
+      // Log the factory service response
+      logger.factoryLogger(
+        `${config.factory.url}/api/order`, 
+        'POST', 
+        factoryRequestBody, 
+        j, 
+        r.status
+      );
       
       // Record pizza creation time
       const duration = Date.now() - startTime;
@@ -111,6 +136,9 @@ orderRouter.post(
         res.status(500).send({ message: 'Failed to fulfill order at factory', reportPizzaCreationErrorToPizzaFactoryUrl: j.reportUrl });
       }
     } catch (error) {
+      // Log error
+      logger.errorLogger(error, req);
+      
       // Track failed order
       metrics.trackPizzaFailure();
       throw error;
