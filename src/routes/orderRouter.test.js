@@ -14,14 +14,12 @@ const {
     let testMenuItem;
   
     beforeAll(async () => {
-      // Setup admin
       const admin = await createAdminUser();
       const adminLogin = await request(app)
         .put('/api/auth')
         .send({ email: admin.email, password: admin.password });
       adminToken = adminLogin.body.token;
   
-      // Setup diner
       testDiner = await DB.addUser({
         name: randomName(),
         email: `${randomName()}@test.com`,
@@ -33,14 +31,12 @@ const {
         .send({ email: testDiner.email, password: 'testpass' });
       dinerToken = dinerLogin.body.token;
   
-      // Create a franchise and store for orders
       const franchise = await DB.createFranchise({
         name: randomName(),
         admins: [{ email: admin.email }]
       });
       testStore = await DB.createStore(franchise.id, { name: 'Test Store' });
   
-      // Create a menu item
       testMenuItem = {
         title: randomName(),
         description: 'Test pizza',
