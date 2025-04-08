@@ -8,6 +8,9 @@ const logger = require('../logger.js');
 
 const orderRouter = express.Router();
 
+// Add chaos mode flag
+let enableChaos = false;
+
 orderRouter.endpoints = [
   {
     method: 'GET',
@@ -39,6 +42,14 @@ orderRouter.endpoints = [
     description: 'Create a order for the authenticated user',
     example: `curl -X POST localhost:3000/api/order -H 'Content-Type: application/json' -d '{"franchiseId": 1, "storeId":1, "items":[{ "menuId": 1, "description": "Veggie", "price": 0.05 }]}'  -H 'Authorization: Bearer tttttt'`,
     response: { order: { franchiseId: 1, storeId: 1, items: [{ menuId: 1, description: 'Veggie', price: 0.05 }], id: 1 }, jwt: '1111111111' },
+  },
+  {
+    method: 'PUT',
+    path: '/api/order/chaos/:state',
+    requiresAuth: true,
+    description: 'Enable or disable chaos mode for testing',
+    example: `curl -X PUT localhost:3000/api/order/chaos/true -H 'Authorization: Bearer tttttt'`,
+    response: { chaos: true },
   },
 ];
 
@@ -73,6 +84,40 @@ orderRouter.get(
     res.json(await DB.getOrders(req.user, req.query.page));
   })
 );
+
+// Enable/disable chaos mode - only admins can toggle
+orderRouter.put(
+  '/chaos/:state',
+  authRouter.authenticateToken,
+  asyncHandler(async (req, res) => {
+    if (req.user.isRole(Role.Admin)) {
+      enableChaos = req.params.state === 'true';
+      logger.log('info', 'admin', { message: `Chaos mode ${enableChaos ? 'enabled' : 'disabled'} by ${req.user.name}` });
+    } else {
+      throw new StatusCodeError('Only admins can control chaos mode', 403);
+    }
+
+    res.json({ chaos: enableChaos });
+  })
+);
+
+// Chaos middleware - must be placed before the actual handler
+orderRouter.post('/', (req, res, next) => {
+  if (enableChaos && Math.random() < 0.5) {
+    // Track failed order due to chaos
+    metrics.trackPizzaFailure();
+    
+    // Log the chaos event
+    logger.log('error', 'chaos', { 
+      message: 'Chaos monkey triggered order failure',
+      user: req.user ? req.user.id : 'unknown',
+      path: req.originalUrl
+    });
+    
+    throw new StatusCodeError('Chaos monkey: Order processing failed', 500);
+  }
+  next();
+});
 
 // createOrder
 orderRouter.post(
